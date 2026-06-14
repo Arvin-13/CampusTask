@@ -108,8 +108,8 @@ class TestPersistenceRoundtrip:
     def test_roundtrip_preserves_all_fields(self, temp_tasks_file):
         """【测试用例10/12】保存后再加载，所有字段保持一致。"""
         original = [
-            {"id": 1, "title": "任务1", "status": "pending", "created_at": "2026-06-14 10:00:00"},
-            {"id": 2, "title": "任务2", "status": "done", "created_at": "2026-06-14 10:01:00"},
+            {"id": 1, "title": "任务1", "status": "pending", "created_at": "2026-06-14 10:00:00", "priority": "high"},
+            {"id": 2, "title": "任务2", "status": "done", "created_at": "2026-06-14 10:01:00", "priority": "medium"},
         ]
         save_tasks(original)
         loaded = load_tasks()
@@ -121,3 +121,25 @@ class TestPersistenceRoundtrip:
             assert orig["title"] == reloaded["title"]
             assert orig["status"] == reloaded["status"]
             assert orig["created_at"] == reloaded["created_at"]
+            assert orig["priority"] == reloaded["priority"]
+
+    # =====================================================================
+    # priority 持久化测试（实验4 新增）
+    # =====================================================================
+
+    def test_roundtrip_preserves_priority(self, temp_tasks_file):
+        """【正常】priority 字段在 save→load 往返后保持不变。"""
+        original = [
+            {"id": 1, "title": "高", "status": "pending",
+             "created_at": "2026-06-14 10:00:00", "priority": "high"},
+            {"id": 2, "title": "中", "status": "pending",
+             "created_at": "2026-06-14 10:01:00", "priority": "medium"},
+            {"id": 3, "title": "低", "status": "pending",
+             "created_at": "2026-06-14 10:02:00", "priority": "low"},
+        ]
+        save_tasks(original)
+        loaded = load_tasks()
+
+        assert loaded[0]["priority"] == "high"
+        assert loaded[1]["priority"] == "medium"
+        assert loaded[2]["priority"] == "low"

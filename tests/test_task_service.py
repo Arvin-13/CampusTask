@@ -16,6 +16,7 @@ from task_service import (
     get_all_tasks,
     get_pending_tasks,
     get_done_tasks,
+    get_tasks_by_priority,
     get_task_by_id,
     complete_task,
     get_statistics,
@@ -76,6 +77,25 @@ class TestAddTask:
         tasks = get_all_tasks()
         assert len(tasks) == 1
         assert tasks[0]["title"] == "持久化测试"
+
+    # =====================================================================
+    # priority 相关测试（实验4 新增）
+    # =====================================================================
+
+    def test_add_task_with_high_priority(self, temp_tasks_file):
+        """【正常】添加高优先级任务。"""
+        task = add_task("紧急任务", priority="high")
+        assert task["priority"] == "high"
+
+    def test_add_task_default_priority_is_medium(self, temp_tasks_file):
+        """【正常】不指定优先级时默认为 medium。"""
+        task = add_task("普通任务")
+        assert task["priority"] == "medium"
+
+    def test_add_task_with_invalid_priority_raises_error(self, temp_tasks_file):
+        """【失败】非法优先级抛出 ValueError。"""
+        with pytest.raises(ValueError):
+            add_task("测试", priority="urgent")
 
 
 # ============================================================================
@@ -198,6 +218,31 @@ class TestStatistics:
         assert stats["total"] == 2
         assert stats["pending"] == 0
         assert stats["done"] == 2
+
+
+# ============================================================================
+# 测试按优先级筛选（实验4 新增）
+# ============================================================================
+
+class TestPriorityFiltering:
+    """测试 get_tasks_by_priority() 和优先级排序。"""
+
+    def test_filter_high_priority(self, temp_tasks_file_with_data):
+        """【正常】筛选高优先级任务。"""
+        tasks = get_tasks_by_priority("high")
+        assert len(tasks) >= 1
+        assert all(t["priority"] == "high" for t in tasks)
+
+    def test_sorted_by_priority_desc(self, temp_tasks_file):
+        """【正常】任务列表按优先级降序排列（高→中→低）。"""
+        add_task("低优先", priority="low")
+        add_task("高优先", priority="high")
+        add_task("中优先", priority="medium")
+
+        all_tasks = get_all_tasks()
+        priorities = [t.get("priority") for t in all_tasks]
+        # 高优先级的应该排在最前面
+        assert priorities[0] == "high"
 
 
 # ============================================================================

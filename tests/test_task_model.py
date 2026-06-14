@@ -12,10 +12,14 @@ import re
 from task_model import (
     create_task,
     validate_title,
+    validate_priority,
     is_valid_task,
     TASK_STATUS_PENDING,
     TASK_STATUS_DONE,
     TASK_REQUIRED_FIELDS,
+    PRIORITY_LOW,
+    PRIORITY_MEDIUM,
+    PRIORITY_HIGH,
 )
 
 
@@ -58,6 +62,20 @@ class TestCreateTask:
         pattern = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"
         assert re.match(pattern, task["created_at"]), f"时间格式不正确: {task['created_at']}"
 
+    # =====================================================================
+    # priority 字段测试（实验4 新增）
+    # =====================================================================
+
+    def test_create_task_with_high_priority(self):
+        """【正常】create_task 支持创建高优先级任务。"""
+        task = create_task(1, "紧急任务", priority="high")
+        assert task["priority"] == "high"
+
+    def test_create_task_default_priority_is_medium(self):
+        """【正常】不指定优先级时默认为 medium。"""
+        task = create_task(1, "普通任务")
+        assert task["priority"] == "medium"
+
 
 # ============================================================================
 # 测试 validate_title()
@@ -98,17 +116,17 @@ class TestIsValidTask:
 
     def test_valid_task_returns_true(self):
         """【正常】包含所有必需字段且类型正确的任务返回 True。"""
-        task = {"id": 1, "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00"}
+        task = {"id": 1, "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00", "priority": "medium"}
         assert is_valid_task(task) is True
 
     def test_missing_field_returns_false(self):
         """【边界】缺少字段的任务返回 False。"""
-        task = {"id": 1, "title": "测试"}  # 缺少 status 和 created_at
+        task = {"id": 1, "title": "测试"}  # 缺少 status、created_at、priority
         assert is_valid_task(task) is False
 
     def test_wrong_type_returns_false(self):
         """【边界】字段类型错误返回 False。"""
-        task = {"id": "不是数字", "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00"}
+        task = {"id": "不是数字", "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00", "priority": "medium"}
         assert is_valid_task(task) is False
 
 
@@ -126,10 +144,46 @@ class TestStatusConstants:
         assert TASK_STATUS_DONE == "done"
 
     def test_required_fields_structure(self):
-        """验证 TASK_REQUIRED_FIELDS 包含四个字段。"""
+        """验证 TASK_REQUIRED_FIELDS 包含五个字段（含 priority）。"""
         assert "id" in TASK_REQUIRED_FIELDS
         assert "title" in TASK_REQUIRED_FIELDS
         assert "status" in TASK_REQUIRED_FIELDS
         assert "created_at" in TASK_REQUIRED_FIELDS
+        assert "priority" in TASK_REQUIRED_FIELDS
         assert TASK_REQUIRED_FIELDS["id"] == int
         assert TASK_REQUIRED_FIELDS["title"] == str
+        assert TASK_REQUIRED_FIELDS["priority"] == str
+
+    def test_priority_constants(self):
+        """验证优先级常量定义正确。"""
+        assert PRIORITY_LOW == "low"
+        assert PRIORITY_MEDIUM == "medium"
+        assert PRIORITY_HIGH == "high"
+
+
+# ============================================================================
+# 测试 validate_priority()（实验4 新增）
+# ============================================================================
+
+class TestValidatePriority:
+    """测试优先级校验函数。"""
+
+    def test_valid_high(self):
+        assert validate_priority("high") is None
+
+    def test_valid_medium(self):
+        assert validate_priority("medium") is None
+
+    def test_valid_low(self):
+        assert validate_priority("low") is None
+
+    def test_invalid_priority_returns_error(self):
+        """【边界】非法优先级返回错误。"""
+        error = validate_priority("urgent")
+        assert error is not None
+        assert "low" in error or "medium" in error or "high" in error
+
+    def test_empty_priority_returns_error(self):
+        """【边界】空字符串不是合法优先级。"""
+        error = validate_priority("")
+        assert error is not None
