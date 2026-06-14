@@ -13,6 +13,7 @@ main.py 只与本模块对话，不直接接触 task_storage / task_model。
 from task_model import (
     create_task,
     validate_title,
+    validate_deadline,
     TASK_STATUS_DONE,
     TASK_STATUS_PENDING,
 )
@@ -34,25 +35,31 @@ def _get_next_id(tasks: list[dict]) -> int:
 # 公共业务接口
 # ---------------------------------------------------------------------------
 
-def add_task(title: str) -> dict:
+def add_task(title: str, deadline: str | None = None) -> dict:
     """添加一个新任务并持久化。
 
     Args:
-        title: 用户输入的任务标题（可含首尾空白，本函数会处理）。
+        title:    用户输入的任务标题（可含首尾空白，本函数会处理）。
+        deadline: 可选的截止日期，格式 YYYY-MM-DD。
 
     Returns:
         dict: 成功创建的任务记录。
 
     Raises:
-        ValueError: 标题校验不通过时抛出。
+        ValueError: 标题或截止日期校验不通过时抛出。
     """
     cleaned_title = title.strip()
     error = validate_title(cleaned_title)
     if error:
         raise ValueError(error)
 
+    # 校验截止日期（如果提供）
+    deadline_error = validate_deadline(deadline)
+    if deadline_error:
+        raise ValueError(deadline_error)
+
     tasks = load_tasks()
-    new_task = create_task(_get_next_id(tasks), cleaned_title)
+    new_task = create_task(_get_next_id(tasks), cleaned_title, deadline)
     tasks.append(new_task)
     save_tasks(tasks)
     return new_task
@@ -107,6 +114,23 @@ def complete_task(task_id: int) -> dict:
     raise LookupError(f"未找到编号为 {task_id} 的任务")
 
 
+def get_overdue_tasks() -> list[dict]:
+    """获取所有已过期的待办任务（当前日期超过 deadline）。"""
+    from datetime import date
+    today = date.today()
+    overdue = []
+    for task in get_pending_tasks():
+        dl = task.get("deadline")
+        if dl is not None:
+            try:
+                dl_date = date.fromisoformat(dl)
+                if dl_date < today:
+                    overdue.append(task)
+            except (ValueError, TypeError):
+                pass  # 忽略格式异常的 deadline
+    return overdue
+
+
 def get_statistics() -> dict:
     """返回任务统计信息。"""
     all_tasks = get_all_tasks()
@@ -116,4 +140,5 @@ def get_statistics() -> dict:
         "total": len(all_tasks),
         "pending": len(pending),
         "done": len(done),
+        "overdue": len(get_overdue_tasks()),
     }
