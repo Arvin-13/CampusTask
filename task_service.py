@@ -13,8 +13,10 @@ main.py 只与本模块对话，不直接接触 task_storage / task_model。
 from task_model import (
     create_task,
     validate_title,
+    validate_priority,
     TASK_STATUS_DONE,
     TASK_STATUS_PENDING,
+    PRIORITY_ORDER,
 )
 from task_storage import load_tasks, save_tasks
 
@@ -34,34 +36,40 @@ def _get_next_id(tasks: list[dict]) -> int:
 # 公共业务接口
 # ---------------------------------------------------------------------------
 
-def add_task(title: str) -> dict:
+def add_task(title: str, priority: str = "medium") -> dict:
     """添加一个新任务并持久化。
 
     Args:
-        title: 用户输入的任务标题（可含首尾空白，本函数会处理）。
+        title:    用户输入的任务标题（可含首尾空白，本函数会处理）。
+        priority: 优先级，可选 low / medium / high，默认 medium。
 
     Returns:
         dict: 成功创建的任务记录。
 
     Raises:
-        ValueError: 标题校验不通过时抛出。
+        ValueError: 标题或优先级校验不通过时抛出。
     """
     cleaned_title = title.strip()
     error = validate_title(cleaned_title)
     if error:
         raise ValueError(error)
 
+    # 校验优先级
+    priority_error = validate_priority(priority)
+    if priority_error:
+        raise ValueError(priority_error)
+
     tasks = load_tasks()
-    new_task = create_task(_get_next_id(tasks), cleaned_title)
+    new_task = create_task(_get_next_id(tasks), cleaned_title, priority)
     tasks.append(new_task)
     save_tasks(tasks)
     return new_task
 
 
 def get_all_tasks() -> list[dict]:
-    """获取所有任务（按 id 升序）。"""
+    """获取所有任务（按优先级降序，同优先级按 id 升序）。"""
     tasks = load_tasks()
-    tasks.sort(key=lambda t: t["id"])
+    tasks.sort(key=lambda t: (PRIORITY_ORDER.get(t.get("priority"), 2), t["id"]))
     return tasks
 
 
@@ -105,6 +113,11 @@ def complete_task(task_id: int) -> dict:
             save_tasks(tasks)
             return task
     raise LookupError(f"未找到编号为 {task_id} 的任务")
+
+
+def get_tasks_by_priority(priority: str) -> list[dict]:
+    """按指定优先级筛选任务。"""
+    return [t for t in get_all_tasks() if t.get("priority") == priority]
 
 
 def get_statistics() -> dict:
