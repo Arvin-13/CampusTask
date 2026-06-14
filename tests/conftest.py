@@ -17,9 +17,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # ---------------------------------------------------------------------------
 
 SAMPLE_TASKS = [
-    {"id": 1, "title": "完成实验报告", "status": "pending", "created_at": "2026-06-14 10:00:00", "deadline": "2026-06-20"},
-    {"id": 2, "title": "复习高等数学", "status": "done",    "created_at": "2026-06-14 10:01:00", "deadline": None},
-    {"id": 3, "title": "去图书馆学习", "status": "pending", "created_at": "2026-06-14 10:02:00", "deadline": "2026-01-01"},
+    {"id": 1, "title": "完成实验报告", "status": "pending", "created_at": "2026-06-14 10:00:00", "deadline": "2026-06-20", "priority": "high"},
+    {"id": 2, "title": "复习高等数学", "status": "done",    "created_at": "2026-06-14 10:01:00", "deadline": None,           "priority": "medium"},
+    {"id": 3, "title": "去图书馆学习", "status": "pending", "created_at": "2026-06-14 10:02:00", "deadline": "2026-01-01", "priority": "low"},
 ]
 
 

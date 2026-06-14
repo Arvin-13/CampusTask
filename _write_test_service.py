@@ -1,4 +1,7 @@
-"""
+"""Write the resolved test_task_service.py"""
+import pathlib
+
+content = '''"""
 test_task_service.py —— 测试 task_service 模块
 
 测试范围：
@@ -286,3 +289,7 @@ class TestDataConsistency:
         assert task["status"] == "done"
         all_tasks = get_all_tasks()
         assert len(all_tasks) == 1
+'''
+
+pathlib.Path('tests/test_task_service.py').write_text(content, encoding='utf-8')
+print('test_task_service.py written')

@@ -20,6 +20,7 @@ from task_service import (
     get_pending_tasks,
     get_done_tasks,
     get_overdue_tasks,
+    get_tasks_by_priority,
     complete_task,
     get_statistics,
 )
@@ -34,16 +35,19 @@ def print_usage() -> None:
     print("CampusTask -- 校园任务清单")
     print("=" * 50)
     print("用法:")
-    print('  python main.py add "任务标题" [--deadline YYYY-MM-DD]')
+    print('  python main.py add "任务标题" [--deadline YYYY-MM-DD] [--priority high|medium|low]')
     print("  python main.py list")
     print("  python main.py done <编号>")
     print("  python main.py overdue")
+    print("  python main.py priority <high|medium|low>")
     print("=" * 50)
 
 
 # ---------------------------------------------------------------------------
 # 输出渲染（视图层）
 # ---------------------------------------------------------------------------
+
+PRIORITY_MARKS = {"high": "🔴", "medium": "🟡", "low": "🟢"}
 
 def print_section_header(title: str) -> None:
     """打印带装饰的分节标题。"""
@@ -55,8 +59,10 @@ def print_pending_tasks(tasks: list[dict]) -> None:
     """打印待完成任务列表。"""
     print_section_header(f"待完成 ({len(tasks)} 项)：")
     for task in tasks:
+        p = task.get("priority", "medium")
+        mark = PRIORITY_MARKS.get(p, "")
         deadline_str = f"  截止: {task['deadline']}" if task.get("deadline") else ""
-        print(f"  [{task['id']}] {task['title']}{deadline_str}")
+        print(f"  [{task['id']}] {mark} {task['title']}{deadline_str}")
         print(f"      创建时间: {task['created_at']}")
 
 
@@ -83,11 +89,13 @@ def print_statistics(stats: dict) -> None:
 # 命令处理函数
 # ---------------------------------------------------------------------------
 
-def handle_add(title: str, deadline: str | None = None) -> None:
+def handle_add(title: str, deadline: str | None = None,
+               priority: str = "medium") -> None:
     """处理 add 命令：添加新任务并打印结果。"""
     try:
-        task = add_task(title, deadline)
-        msg = f'已添加 #{task["id"]}：{task["title"]}'
+        task = add_task(title, deadline, priority)
+        mark = PRIORITY_MARKS.get(priority, "")
+        msg = f'已添加 #{task["id"]}：{mark} {task["title"]}'
         if task.get("deadline"):
             msg += f"（截止: {task['deadline']}）"
         print(msg)
@@ -133,6 +141,21 @@ def handle_overdue() -> None:
         print(f"  [{task['id']}] {task['title']}（截止: {dl}）")
 
 
+def handle_priority(level: str) -> None:
+    """处理 priority 命令：按优先级筛选任务。"""
+    valid = {"high", "medium", "low"}
+    if level not in valid:
+        print(f"无效的优先级 '{level}'，可选：high / medium / low")
+        return
+    tasks = get_tasks_by_priority(level)
+    mark = PRIORITY_MARKS.get(level, "")
+    print(f"\n{mark} 优先级为 '{level}' 的任务 ({len(tasks)} 项):")
+    print("-" * 40)
+    for task in tasks:
+        status = "✓" if task["status"] == "done" else "○"
+        print(f"  [{task['id']}] {status} {task['title']}")
+
+
 def handle_done(task_id_str: str) -> None:
     """处理 done 命令：将指定编号的任务标记为完成。"""
     if not task_id_str.isdigit():
@@ -162,27 +185,32 @@ _COMMAND_HANDLERS = {
              else print("done 命令需要任务编号\n"
                          "   示例: python main.py done 1"),
     "overdue": lambda _: handle_overdue(),
+    "priority": lambda args: handle_priority(args[1]) if len(args) > 1
+                 else print("priority 命令需要优先级参数\n"
+                            "   示例: python main.py priority high"),
 }
 
 
 def _parse_add_command(args: list[str]) -> None:
-    """解析 add 命令的参数，支持 --deadline 选项。"""
+    """解析 add 命令的参数，支持 --deadline 和 --priority 选项。"""
     if len(args) < 2:
         print("add 命令需要任务标题\n"
               '   示例: python main.py add "做实验"\n'
-              '   示例: python main.py add "交报告" --deadline 2026-06-20')
+              '   示例: python main.py add "交报告" --deadline 2026-06-20 --priority high')
         return
 
     title = args[1]
     deadline = None
+    priority = "medium"
 
-    # 解析 --deadline 选项
+    # 解析 --deadline 和 --priority 选项
     for i, arg in enumerate(args):
         if arg == "--deadline" and i + 1 < len(args):
             deadline = args[i + 1]
-            break
+        if arg == "--priority" and i + 1 < len(args):
+            priority = args[i + 1]
 
-    handle_add(title, deadline)
+    handle_add(title, deadline, priority)
 
 
 def dispatch(args: list[str]) -> None:

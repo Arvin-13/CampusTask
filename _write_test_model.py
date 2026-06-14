@@ -1,4 +1,7 @@
-"""
+"""Write the resolved test_task_model.py"""
+import pathlib
+
+content = '''"""
 test_task_model.py -- test task_model module
 
 Tests:
@@ -49,7 +52,7 @@ class TestCreateTask:
 
     def test_create_task_timestamp_format(self):
         task = create_task(1, "time check")
-        pattern = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"
+        pattern = r"^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$"
         assert re.match(pattern, task["created_at"]), f"Bad format: {task['created_at']}"
 
     def test_create_task_with_deadline(self):
@@ -174,3 +177,7 @@ class TestStatusConstants:
         assert PRIORITY_LOW == "low"
         assert PRIORITY_MEDIUM == "medium"
         assert PRIORITY_HIGH == "high"
+'''
+
+pathlib.Path('tests/test_task_model.py').write_text(content, encoding='utf-8')
+print('test_task_model.py written')
