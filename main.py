@@ -19,6 +19,7 @@ from task_service import (
     get_all_tasks,
     get_pending_tasks,
     get_done_tasks,
+    get_tasks_by_priority,
     complete_task,
     get_statistics,
 )
@@ -33,9 +34,10 @@ def print_usage() -> None:
     print("CampusTask -- 校园任务清单")
     print("=" * 50)
     print("用法:")
-    print('  python main.py add "任务标题"')
+    print('  python main.py add "任务标题" [--priority high|medium|low]')
     print("  python main.py list")
     print("  python main.py done <编号>")
+    print("  python main.py priority <high|medium|low>")
     print("=" * 50)
 
 
@@ -49,11 +51,15 @@ def print_section_header(title: str) -> None:
     print("-" * 40)
 
 
+PRIORITY_MARKS = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+
 def print_pending_tasks(tasks: list[dict]) -> None:
     """打印待完成任务列表。"""
     print_section_header(f"待完成 ({len(tasks)} 项)：")
     for task in tasks:
-        print(f"  [{task['id']}] {task['title']}")
+        p = task.get("priority", "medium")
+        mark = PRIORITY_MARKS.get(p, "")
+        print(f"  [{task['id']}] {mark} {task['title']}")
         print(f"      创建时间: {task['created_at']}")
 
 
@@ -77,11 +83,12 @@ def print_statistics(stats: dict) -> None:
 # 命令处理函数
 # ---------------------------------------------------------------------------
 
-def handle_add(title: str) -> None:
+def handle_add(title: str, priority: str = "medium") -> None:
     """处理 add 命令：添加新任务并打印结果。"""
     try:
-        task = add_task(title)
-        print(f'已添加 #{task["id"]}：{task["title"]}')
+        task = add_task(title, priority)
+        mark = PRIORITY_MARKS.get(priority, "")
+        print(f'已添加 #{task["id"]}：{mark} {task["title"]}（优先级: {priority}）')
     except ValueError as exc:
         print(str(exc))
 
@@ -109,6 +116,21 @@ def handle_list() -> None:
     print_statistics(get_statistics())
 
 
+def handle_priority(level: str) -> None:
+    """处理 priority 命令：按优先级筛选任务。"""
+    valid = {"high", "medium", "low"}
+    if level not in valid:
+        print(f"无效的优先级 '{level}'，可选：high / medium / low")
+        return
+    tasks = get_tasks_by_priority(level)
+    mark = PRIORITY_MARKS.get(level, "")
+    print(f"\n{mark} 优先级为 '{level}' 的任务 ({len(tasks)} 项):")
+    print("-" * 40)
+    for task in tasks:
+        status = "✓" if task["status"] == "done" else "○"
+        print(f"  [{task['id']}] {status} {task['title']}")
+
+
 def handle_done(task_id_str: str) -> None:
     """处理 done 命令：将指定编号的任务标记为完成。"""
     if not task_id_str.isdigit():
@@ -132,14 +154,35 @@ def handle_done(task_id_str: str) -> None:
 # ---------------------------------------------------------------------------
 
 _COMMAND_HANDLERS = {
-    "add":  lambda args: handle_add(args[1]) if len(args) > 1
-             else print("add 命令需要任务标题\n"
-                         '   示例: python main.py add "做实验"'),
+    "add":  lambda args: _parse_add_command(args),
     "list": lambda _: handle_list(),
     "done": lambda args: handle_done(args[1]) if len(args) > 1
              else print("done 命令需要任务编号\n"
                          "   示例: python main.py done 1"),
+    "priority": lambda args: handle_priority(args[1]) if len(args) > 1
+                 else print("priority 命令需要优先级参数\n"
+                            "   示例: python main.py priority high"),
 }
+
+
+def _parse_add_command(args: list[str]) -> None:
+    """解析 add 命令的参数，支持 --priority 选项。"""
+    if len(args) < 2:
+        print("add 命令需要任务标题\n"
+              '   示例: python main.py add "做实验"\n'
+              '   示例: python main.py add "交报告" --priority high')
+        return
+
+    title = args[1]
+    priority = "medium"
+
+    # 解析 --priority 选项
+    for i, arg in enumerate(args):
+        if arg == "--priority" and i + 1 < len(args):
+            priority = args[i + 1]
+            break
+
+    handle_add(title, priority)
 
 
 def dispatch(args: list[str]) -> None:
