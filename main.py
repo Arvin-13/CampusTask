@@ -19,6 +19,7 @@ from task_service import (
     get_all_tasks,
     get_pending_tasks,
     get_done_tasks,
+    get_overdue_tasks,
     complete_task,
     get_statistics,
 )
@@ -33,9 +34,10 @@ def print_usage() -> None:
     print("CampusTask -- 校园任务清单")
     print("=" * 50)
     print("用法:")
-    print('  python main.py add "任务标题"')
+    print('  python main.py add "任务标题" [--deadline YYYY-MM-DD]')
     print("  python main.py list")
     print("  python main.py done <编号>")
+    print("  python main.py overdue")
     print("=" * 50)
 
 
@@ -53,7 +55,8 @@ def print_pending_tasks(tasks: list[dict]) -> None:
     """打印待完成任务列表。"""
     print_section_header(f"待完成 ({len(tasks)} 项)：")
     for task in tasks:
-        print(f"  [{task['id']}] {task['title']}")
+        deadline_str = f"  截止: {task['deadline']}" if task.get("deadline") else ""
+        print(f"  [{task['id']}] {task['title']}{deadline_str}")
         print(f"      创建时间: {task['created_at']}")
 
 
@@ -66,22 +69,28 @@ def print_done_tasks(tasks: list[dict]) -> None:
 
 def print_statistics(stats: dict) -> None:
     """打印任务统计摘要。"""
-    print(
-        f"\n>> 总计: {stats['total']} | "
-        f"待完成: {stats['pending']} | "
-        f"已完成: {stats['done']}"
-    )
+    parts = [
+        f"总计: {stats['total']}",
+        f"待完成: {stats['pending']}",
+        f"已完成: {stats['done']}",
+    ]
+    if stats.get("overdue", 0) > 0:
+        parts.append(f"已过期: {stats['overdue']}")
+    print(f"\n>> {' | '.join(parts)}")
 
 
 # ---------------------------------------------------------------------------
 # 命令处理函数
 # ---------------------------------------------------------------------------
 
-def handle_add(title: str) -> None:
+def handle_add(title: str, deadline: str | None = None) -> None:
     """处理 add 命令：添加新任务并打印结果。"""
     try:
-        task = add_task(title)
-        print(f'已添加 #{task["id"]}：{task["title"]}')
+        task = add_task(title, deadline)
+        msg = f'已添加 #{task["id"]}：{task["title"]}'
+        if task.get("deadline"):
+            msg += f"（截止: {task['deadline']}）"
+        print(msg)
     except ValueError as exc:
         print(str(exc))
 
@@ -109,6 +118,21 @@ def handle_list() -> None:
     print_statistics(get_statistics())
 
 
+def handle_overdue() -> None:
+    """处理 overdue 命令：列出已过期的待办任务。"""
+    overdue = get_overdue_tasks()
+    if not overdue:
+        print("没有过期的任务")
+        return
+    print(f"\n已过期 ({len(overdue)} 项):")
+    print("-" * 40)
+    from datetime import date
+    today = date.today()
+    for task in overdue:
+        dl = task.get("deadline", "?")
+        print(f"  [{task['id']}] {task['title']}（截止: {dl}）")
+
+
 def handle_done(task_id_str: str) -> None:
     """处理 done 命令：将指定编号的任务标记为完成。"""
     if not task_id_str.isdigit():
@@ -132,14 +156,33 @@ def handle_done(task_id_str: str) -> None:
 # ---------------------------------------------------------------------------
 
 _COMMAND_HANDLERS = {
-    "add":  lambda args: handle_add(args[1]) if len(args) > 1
-             else print("add 命令需要任务标题\n"
-                         '   示例: python main.py add "做实验"'),
+    "add":  lambda args: _parse_add_command(args),
     "list": lambda _: handle_list(),
     "done": lambda args: handle_done(args[1]) if len(args) > 1
              else print("done 命令需要任务编号\n"
                          "   示例: python main.py done 1"),
+    "overdue": lambda _: handle_overdue(),
 }
+
+
+def _parse_add_command(args: list[str]) -> None:
+    """解析 add 命令的参数，支持 --deadline 选项。"""
+    if len(args) < 2:
+        print("add 命令需要任务标题\n"
+              '   示例: python main.py add "做实验"\n'
+              '   示例: python main.py add "交报告" --deadline 2026-06-20')
+        return
+
+    title = args[1]
+    deadline = None
+
+    # 解析 --deadline 选项
+    for i, arg in enumerate(args):
+        if arg == "--deadline" and i + 1 < len(args):
+            deadline = args[i + 1]
+            break
+
+    handle_add(title, deadline)
 
 
 def dispatch(args: list[str]) -> None:
