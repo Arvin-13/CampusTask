@@ -108,8 +108,8 @@ class TestPersistenceRoundtrip:
     def test_roundtrip_preserves_all_fields(self, temp_tasks_file):
         """【测试用例10/12】保存后再加载，所有字段保持一致。"""
         original = [
-            {"id": 1, "title": "任务1", "status": "pending", "created_at": "2026-06-14 10:00:00"},
-            {"id": 2, "title": "任务2", "status": "done", "created_at": "2026-06-14 10:01:00"},
+            {"id": 1, "title": "任务1", "status": "pending", "created_at": "2026-06-14 10:00:00", "deadline": "2026-06-20"},
+            {"id": 2, "title": "任务2", "status": "done", "created_at": "2026-06-14 10:01:00", "deadline": None},
         ]
         save_tasks(original)
         loaded = load_tasks()
@@ -121,3 +121,22 @@ class TestPersistenceRoundtrip:
             assert orig["title"] == reloaded["title"]
             assert orig["status"] == reloaded["status"]
             assert orig["created_at"] == reloaded["created_at"]
+            assert orig["deadline"] == reloaded["deadline"]
+
+    # =====================================================================
+    # deadline 持久化测试（实验4 新增）
+    # =====================================================================
+
+    def test_roundtrip_preserves_deadline(self, temp_tasks_file):
+        """【正常】deadline 字段在 save→load 往返后保持不变。"""
+        original = [
+            {"id": 1, "title": "有截止日期", "status": "pending",
+             "created_at": "2026-06-14 10:00:00", "deadline": "2026-12-31"},
+            {"id": 2, "title": "无截止日期", "status": "pending",
+             "created_at": "2026-06-14 10:01:00", "deadline": None},
+        ]
+        save_tasks(original)
+        loaded = load_tasks()
+
+        assert loaded[0]["deadline"] == "2026-12-31"
+        assert loaded[1]["deadline"] is None

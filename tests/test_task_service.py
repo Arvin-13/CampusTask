@@ -2,10 +2,11 @@
 test_task_service.py —— 测试 task_service 模块
 
 测试范围：
-  - add_task()         添加任务（正常、空标题、编号递增）
+  - add_task()         添加任务（正常、空标题、编号递增、deadline）
   - get_all_tasks()    查看全部任务（空列表、有数据）
   - complete_task()    完成任务（存在、不存在、已完成、重复完成）
   - get_task_by_id()   按 ID 查找
+  - get_overdue_tasks() 过期任务检测（实验4 新增）
   - get_statistics()   统计信息
   - 数据持久化和一致性
 """
@@ -16,6 +17,7 @@ from task_service import (
     get_all_tasks,
     get_pending_tasks,
     get_done_tasks,
+    get_overdue_tasks,
     get_task_by_id,
     complete_task,
     get_statistics,
@@ -76,6 +78,30 @@ class TestAddTask:
         tasks = get_all_tasks()
         assert len(tasks) == 1
         assert tasks[0]["title"] == "持久化测试"
+
+    # =====================================================================
+    # deadline 相关测试（实验4 新增）
+    # =====================================================================
+
+    def test_add_task_with_deadline(self, temp_tasks_file):
+        """【正常】添加任务时可以指定截止日期。"""
+        task = add_task("交报告", deadline="2026-12-31")
+        assert task["deadline"] == "2026-12-31"
+
+    def test_add_task_without_deadline(self, temp_tasks_file):
+        """【正常】不指定截止日期时默认为 None。"""
+        task = add_task("无截止日期")
+        assert task["deadline"] is None
+
+    def test_add_task_with_invalid_deadline_raises_error(self, temp_tasks_file):
+        """【失败】截止日期格式错误时抛出 ValueError。"""
+        with pytest.raises(ValueError, match="YYYY-MM-DD"):
+            add_task("格式错误", deadline="2026/12/31")
+
+    def test_add_task_with_nonexistent_date_raises_error(self, temp_tasks_file):
+        """【失败】不存在的日期（2月30日）抛出 ValueError。"""
+        with pytest.raises(ValueError, match="不是合法的日期"):
+            add_task("日期不存在", deadline="2026-02-30")
 
 
 # ============================================================================
@@ -178,7 +204,10 @@ class TestStatistics:
     def test_statistics_empty(self, temp_tasks_file):
         """【边界】空任务列表的统计信息。"""
         stats = get_statistics()
-        assert stats == {"total": 0, "pending": 0, "done": 0}
+        assert stats["total"] == 0
+        assert stats["pending"] == 0
+        assert stats["done"] == 0
+        assert stats["overdue"] == 0
 
     def test_statistics_with_data(self, temp_tasks_file_with_data):
         """【正常】有任务时的统计信息。"""
@@ -198,6 +227,50 @@ class TestStatistics:
         assert stats["total"] == 2
         assert stats["pending"] == 0
         assert stats["done"] == 2
+
+
+# ============================================================================
+# 测试过期任务检测（实验4 新增）
+# ============================================================================
+
+class TestOverdueTasks:
+    """测试 get_overdue_tasks() 过期任务检测。"""
+
+    def test_overdue_tasks_detected(self, temp_tasks_file):
+        """【正常】已过期的pending任务应被检测到。"""
+        # 添加一个昨天截止的任务
+        add_task("昨天截止", deadline="2020-01-01")
+        # 添加一个未来截止的任务
+        add_task("未来截止", deadline="2099-12-31")
+        # 添加一个无截止日期的任务
+        add_task("无截止日期")
+
+        overdue = get_overdue_tasks()
+        assert len(overdue) == 1
+        assert overdue[0]["title"] == "昨天截止"
+
+    def test_no_overdue_when_all_future(self, temp_tasks_file):
+        """【正常】所有截止日期都在未来时返回空列表。"""
+        add_task("未来任务", deadline="2099-12-31")
+        add_task("无截止日期")
+
+        overdue = get_overdue_tasks()
+        assert overdue == []
+
+    def test_overdue_tasks_excludes_done(self, temp_tasks_file):
+        """【正常】已完成的任务不算过期。"""
+        add_task("过期但已完成", deadline="2020-01-01")
+        complete_task(1)
+
+        overdue = get_overdue_tasks()
+        # 任务已完成，不应出现在过期列表中
+        assert len(overdue) == 0
+
+    def test_overdue_from_sample_data(self, temp_tasks_file_with_data):
+        """【正常】示例数据中 id=3 的任务 deadline=2026-01-01 应过期。"""
+        overdue = get_overdue_tasks()
+        # id=3 是 pending 且 deadline=2026-01-01 已过期
+        assert any(t["id"] == 3 for t in overdue)
 
 
 # ============================================================================

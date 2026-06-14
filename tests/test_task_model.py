@@ -12,6 +12,7 @@ import re
 from task_model import (
     create_task,
     validate_title,
+    validate_deadline,
     is_valid_task,
     TASK_STATUS_PENDING,
     TASK_STATUS_DONE,
@@ -98,17 +99,17 @@ class TestIsValidTask:
 
     def test_valid_task_returns_true(self):
         """【正常】包含所有必需字段且类型正确的任务返回 True。"""
-        task = {"id": 1, "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00"}
+        task = {"id": 1, "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00", "deadline": None}
         assert is_valid_task(task) is True
 
     def test_missing_field_returns_false(self):
         """【边界】缺少字段的任务返回 False。"""
-        task = {"id": 1, "title": "测试"}  # 缺少 status 和 created_at
+        task = {"id": 1, "title": "测试"}  # 缺少 status、created_at、deadline
         assert is_valid_task(task) is False
 
     def test_wrong_type_returns_false(self):
         """【边界】字段类型错误返回 False。"""
-        task = {"id": "不是数字", "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00"}
+        task = {"id": "不是数字", "title": "测试", "status": "pending", "created_at": "2026-06-14 10:00:00", "deadline": None}
         assert is_valid_task(task) is False
 
 
@@ -126,10 +127,59 @@ class TestStatusConstants:
         assert TASK_STATUS_DONE == "done"
 
     def test_required_fields_structure(self):
-        """验证 TASK_REQUIRED_FIELDS 包含四个字段。"""
+        """验证 TASK_REQUIRED_FIELDS 包含五个字段（含 deadline）。"""
         assert "id" in TASK_REQUIRED_FIELDS
         assert "title" in TASK_REQUIRED_FIELDS
         assert "status" in TASK_REQUIRED_FIELDS
         assert "created_at" in TASK_REQUIRED_FIELDS
+        assert "deadline" in TASK_REQUIRED_FIELDS
         assert TASK_REQUIRED_FIELDS["id"] == int
         assert TASK_REQUIRED_FIELDS["title"] == str
+
+    # =====================================================================
+    # deadline 字段测试（实验4 新增）
+    # =====================================================================
+
+    def test_create_task_with_deadline(self):
+        """【正常】create_task 支持可选 deadline 参数。"""
+        task = create_task(1, "交报告", deadline="2026-06-20")
+        assert task["deadline"] == "2026-06-20"
+
+    def test_create_task_without_deadline(self):
+        """【正常】创建任务不提供 deadline 时默认为 None。"""
+        task = create_task(1, "无截止日期")
+        assert task["deadline"] is None
+
+
+# ============================================================================
+# 测试 validate_deadline()
+# ============================================================================
+
+class TestValidateDeadline:
+    """测试截止日期校验函数（实验4 新增）。"""
+
+    def test_valid_deadline_returns_none(self):
+        """【正常】合法日期返回 None。"""
+        assert validate_deadline("2026-12-31") is None
+
+    def test_none_deadline_returns_none(self):
+        """【正常】None（无截止日期）返回 None。"""
+        assert validate_deadline(None) is None
+
+    def test_bad_format_returns_error(self):
+        """【边界】格式错误的日期返回错误信息。"""
+        error = validate_deadline("2026/12/31")
+        assert error is not None
+        assert "YYYY-MM-DD" in error
+
+    def test_invalid_date_returns_error(self):
+        """【边界】不存在的日期（如2月30日）返回错误。"""
+        error = validate_deadline("2026-02-30")
+        assert error is not None
+        assert "不是合法的日期" in error
+
+    def test_short_string_returns_error(self):
+        """【边界】非日期短字符串返回错误。"""
+        error = validate_deadline("abc")
+        assert error is not None
+        assert "YYYY-MM-DD" in error
