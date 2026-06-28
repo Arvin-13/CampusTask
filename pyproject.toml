@@ -3,8 +3,8 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "CampusTask"
-version = "1.0.0"
+name = "campus_task"
+version = "0.2.1"
 description = "校园任务清单 - 命令行任务管理工具"
 authors = [
   { name = "CampusTask Dev", email = "dev@campustask.example" }
@@ -13,7 +13,7 @@ requires-python = ">=3.8"
 dependencies = []
 
 [project.scripts]
-campustask = "main:main"
+campustask = "campus_task.__main__:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

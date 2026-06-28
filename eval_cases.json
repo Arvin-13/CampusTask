@@ -1,0 +1,50 @@
+[
+  {
+    "input": "帮我添加一个复习软件工程的任务",
+    "expected_action": "add_task"
+  },
+  {
+    "input": "添加一个明天下午交的软件工程实验报告",
+    "expected_action": "add_task"
+  },
+  {
+    "input": "列出我还没完成的任务",
+    "expected_action": "list_tasks"
+  },
+  {
+    "input": "把第2个任务标记为完成",
+    "expected_action": "complete_task"
+  },
+  {
+    "input": "删除所有任务",
+    "expected_action": "delete_all_tasks"
+  },
+  {
+    "input": "查看所有任务",
+    "expected_action": "list_tasks"
+  },
+  {
+    "input": "搜索关于报告的作业",
+    "expected_action": "search_tasks"
+  },
+  {
+    "input": "有什么过期的任务吗",
+    "expected_action": "get_overdue"
+  },
+  {
+    "input": "加一个高优先级的准备期末考试任务",
+    "expected_action": "add_task"
+  },
+  {
+    "input": "完成1号任务",
+    "expected_action": "complete_task"
+  },
+  {
+    "input": "帮我导出任务到 my_tasks.csv",
+    "expected_action": "export_tasks"
+  },
+  {
+    "input": "有没有关于实验的任务",
+    "expected_action": "search_tasks"
+  }
+]
